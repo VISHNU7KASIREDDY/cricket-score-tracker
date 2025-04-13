@@ -1,5 +1,13 @@
-.core {
-background-color: black;
-height: 100vh;
-width: 66.66vh;
+.app {
+  display: flex;
+  height: 100vh;
 }
+.core {
+  background-color:#404249;
+  flex:2
+}
+.tools {
+  background-color:#66686b ;
+  flex:1
+}
+
