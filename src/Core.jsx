@@ -1,5 +1,5 @@
 import React from 'react'
-import './index.css'
+import './all.css'
 function Core(){
   return (
     <div className='core'></div>
