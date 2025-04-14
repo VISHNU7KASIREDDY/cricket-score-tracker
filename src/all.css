@@ -37,20 +37,22 @@
   .icons {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 20px;
   }
   
 
   .counter-buttons {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 20px;
     justify-content: center;
+    padding: 10px;
   }
   .special-buttons {
+    padding: 10px;
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 20px;
     justify-content: center;
   }
 
@@ -65,8 +67,11 @@
     font-weight: bold;
     cursor: pointer;
     transition: background-color 0.2s ease;
+
   }
-  
+  .over{
+    font-size: larger;
+  }
   .round:hover {
     background-color: #388e3c;
   }
