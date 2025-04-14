@@ -1,27 +1,5 @@
-.app {
-  display: flex;
-  flex-direction: column;
-}
-.navbar {
-  display: flex;
-  flex:1;
-  background-color: black;
-}
-.body {
-  display: flex;
-  flex:8;
-  background-color: aqua;
-}
-.footer {
-  display: flex;
-  flex: 1;
-}
-.core {
-  background-color:#404249;
-  flex:2
-}
-.tools {
-  background-color:#66686b ;
-  flex:1
+html, body {
+  height: 100%;
+  margin: 0;
 }
 
