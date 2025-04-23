@@ -1,0 +1,85 @@
+/* === Core Container === */
+.core-container {
+    width: 66.6%;                    /* 2/3rd of the width */
+    margin: 0 auto;                   /* Centers the core section */
+    padding: 1rem;
+    background-color: #404249;
+    color: white;
+    overflow-y: auto;
+  }
+  
+  /* === Title and Select Dropdowns === */
+  h2 {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+  }
+  
+  h3 {
+    font-size: 1.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  select {
+    width: 100%;                     /* Full width of container */
+    padding: 0.8rem;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    background-color: #444;
+    color: white;
+    border: 1px solid #666;
+    border-radius: 5px;
+  }
+  
+  select:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+  
+  /* === Dropdown Container (for Batters) === */
+  .dropdowns {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* === Stats Table Styles === */
+  .stats-table {
+    width: 100%;
+    margin-top: 1rem;
+    border-collapse: collapse;
+    background-color: #333;
+  }
+  
+  .stats-table th, .stats-table td {
+    padding: 0.75rem;
+    text-align: center;
+    border: 1px solid #ddd;
+  }
+  
+  .stats-table th {
+    background-color: #007bff;
+    color: white;
+  }
+  
+  .stats-table tr:hover {
+    background-color: #444;
+  }
+  
+  /* === Responsive Design === */
+  @media (max-width: 768px) {
+    .core-container {
+      width: 90%;                  /* Adjust width for small screens */
+    }
+  
+    .dropdowns {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  
+    select {
+      width: 100%;
+    }
+  }
+  

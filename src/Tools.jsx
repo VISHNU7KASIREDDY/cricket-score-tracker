@@ -1,6 +1,7 @@
 import React from 'react'
 import './all.css'
-import Team from './Team'
+import Team1 from './Team1'
+import Team2 from './Team2'
 
 function Tools() {
   return (
@@ -23,12 +24,12 @@ function Tools() {
       </div>
       <div className='team'>
         <button className='add-team'>
-          Team 1
-          <Team/>
+          <h1>Team 1</h1>
+          <Team1/>
         </button>
         <button className='add-team'>
-          Team 2
-          <Team/>
+        <h1>Team 2</h1>
+          <Team2/>
         </button>
       </div>
     </div>

@@ -1,78 +1,125 @@
+/* App.css */
 .app {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
+
+/* Fixed top navbar */
 .navbar {
-    display: flex;
-    flex: 0 0 10%;
-    background-color: black;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    z-index: 1;
+  height: 10vh;
+  background-color: black;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 10;
 }
+
+/* Main scrollable body content below navbar */
 .body {
-    display: flex;
-      flex: 1 1 auto;
-      overflow-y: auto;
-      margin-top: 10vh; 
-      height: 90vh;
+  display: flex;
+  flex: 1;
+  margin-top: 10vh; /* same height as .navbar */
+  height: calc(100vh - 10vh);
+  overflow-y: auto;
 }
 
+/* Core section (main content) */
 .core {
-    background-color:#404249;
-    flex:2
+  flex: 2;
+  background-color: #404249;
+  padding: 1rem;
+  overflow-y: auto; /* Enables scrolling within .core */
+  height: 100%;      /* Fills parent's height */
 }
+
+/* Sidebar tools panel */
 .tools {
-    flex:1;
-    background-color: #66686b;
-    color: white;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  
-  .icons {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  
+  flex: 1;
+  background-color: #66686b;
+  color: white;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+}
+.team {
+  display: flex;
+}
 
-  .counter-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-    padding: 10px;
-  }
-  .special-buttons {
-    padding: 10px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-  }
+/* Buttons and layout elements */
+.icons {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
-  .round {
-    width: 60px;
-    height: 60px;
-    font-size: xx-large;
-    border-radius: 50%;
-    border: none;
-    background-color: white;
-    color: black;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
+.counter-buttons,
+.special-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  padding: 10px;
+}
 
-  }
-  .over{
-    font-size: larger;
-  }
-  .round:hover {
-    background-color: #388e3c;
-  }
-  
+.round {
+  width: 60px;
+  height: 60px;
+  font-size: xx-large;
+  border-radius: 50%;
+  border: none;
+  background-color: white;
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.round:hover {
+  background-color: #388e3c;
+}
+
+.over {
+  font-size: larger;
+}
+select {
+  padding: 0.5rem;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  width: 200px; /* Adjust width if needed */
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 0.75rem;
+  text-align: center;
+  border: 1px solid #ddd;
+}
+
+input[type="number"] {
+  width: 50px;
+  padding: 0.3rem;
+  text-align: center;
+}
+
+input[type="text"] {
+  padding: 0.3rem;
+  width: 150px;
+  margin-right: 10px;
+}
+
+h3 {
+  margin-top: 1rem;
+}
