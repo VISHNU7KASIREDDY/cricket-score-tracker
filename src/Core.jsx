@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './all.css';
 import './core.css';
+
 function Core() {
   const [battingTeamKey, setBattingTeamKey] = useState('');
   const [bowlingTeamKey, setBowlingTeamKey] = useState('');
@@ -8,9 +9,9 @@ function Core() {
   const [bowlingPlayers, setBowlingPlayers] = useState([]);
   const [selectedBatters, setSelectedBatters] = useState(['', '']);
   const [selectedBowler, setSelectedBowler] = useState('');
-
   const [playerStats, setPlayerStats] = useState({});
   const [bowlerStats, setBowlerStats] = useState({});
+  const [availableBatters, setAvailableBatters] = useState([]); // New for Add Batter dropdown
 
   useEffect(() => {
     if (battingTeamKey) {
@@ -22,6 +23,7 @@ function Core() {
       setBowlingTeamKey(battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data');
       setBattingPlayers(battingTeam?.players || []);
       setBowlingPlayers(bowlingTeam?.players || []);
+      setAvailableBatters(battingTeam?.players || []); // Initialize available batters
     }
   }, [battingTeamKey]);
 
@@ -32,13 +34,15 @@ function Core() {
 
     setPlayerStats((prev) => ({
       ...prev,
-      [value]: {
+      [value]: prev[value] || {
         ballsFaced: 0,
         score: 0,
         fours: 0,
         sixes: 0,
       },
     }));
+
+    setAvailableBatters((prev) => prev.filter((p) => p !== value));
   };
 
   const handleBowlerChange = (value) => {
@@ -51,20 +55,45 @@ function Core() {
     });
   };
 
+  const handleBatterOut = (index, newBatter) => {
+    const updatedBatters = [...selectedBatters];
+    updatedBatters[index] = newBatter;
+    setSelectedBatters(updatedBatters);
+
+    setPlayerStats((prev) => ({
+      ...prev,
+      [newBatter]: prev[newBatter] || {
+        ballsFaced: 0,
+        score: 0,
+        fours: 0,
+        sixes: 0,
+      },
+    }));
+
+    setAvailableBatters((prev) => prev.filter((p) => p !== newBatter));
+  };
+
   return (
     <div className="core-container">
-      <h2>Select Batting Team</h2>
-      <select
-        value={battingTeamKey}
-        onChange={(e) => setBattingTeamKey(e.target.value)}
-      >
-        <option value="">-- Select Team --</option>
-        <option value="team1Data">Team 1</option>
-        <option value="team2Data">Team 2</option>
-      </select>
+      {!battingTeamKey && (
+        <select
+          value={battingTeamKey}
+          onChange={(e) => setBattingTeamKey(e.target.value)}
+        >
+          <option value="">-- Select Batting Team --</option>
+          <option value="team1Data">Team 1</option>
+          <option value="team2Data">Team 2</option>
+        </select>
+      )}
 
       {battingTeamKey && (
         <>
+        <div style={{display:'flex',gap:'300px'}}>
+            <h2>Batting Team: {battingTeamKey === 'team1Data' ? 'Team 1' : 'Team 2'}</h2>
+            <h2>Bowling Team: {battingTeamKey === 'team1Data' ? 'Team 2' : 'Team 1'}</h2>
+        </div>
+      
+          
           <h3>Batters</h3>
           <div className="dropdowns">
             {[0, 1].map((i) => (
@@ -74,9 +103,16 @@ function Core() {
                 onChange={(e) => handleBatterChange(i, e.target.value)}
               >
                 <option value="">-- Select Batter {i + 1} --</option>
-                {battingPlayers.map((player, idx) => (
-                  <option key={idx} value={player}>{player}</option>
-                ))}
+                {battingPlayers
+                  .filter(
+                    (player) =>
+                      !selectedBatters.includes(player) || selectedBatters[i] === player
+                  )
+                  .map((player, idx) => (
+                    <option key={idx} value={player}>
+                      {player}
+                    </option>
+                  ))}
               </select>
             ))}
           </div>
@@ -89,6 +125,7 @@ function Core() {
                 <th>Score</th>
                 <th>4s</th>
                 <th>6s</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -100,6 +137,20 @@ function Core() {
                     <td>{playerStats[player]?.score || 0}</td>
                     <td>{playerStats[player]?.fours || 0}</td>
                     <td>{playerStats[player]?.sixes || 0}</td>
+                    <td>
+                      {availableBatters.length > 0 && (
+                        <select
+                          onChange={(e) => handleBatterOut(idx, e.target.value)}
+                        >
+                          <option value="">New Batter</option>
+                          {availableBatters.map((batter, index) => (
+                            <option key={index} value={batter}>
+                              {batter}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
                   </tr>
                 )
               )}
@@ -113,7 +164,9 @@ function Core() {
           >
             <option value="">-- Select Bowler --</option>
             {bowlingPlayers.map((player, idx) => (
-              <option key={idx} value={player}>{player}</option>
+              <option key={idx} value={player}>
+                {player}
+              </option>
             ))}
           </select>
 
