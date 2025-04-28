@@ -195,3 +195,88 @@ h3 {
   background: #FFEB3B;
 }
 
+.sequence-display {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  width: 100%;
+  overflow: hidden;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.sequence-display h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.sequence {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  overflow-x: auto;
+  padding: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #4CAF50 #f5f5f5;
+  white-space: nowrap;
+  max-width: 100%;
+  height: 100%;
+}
+
+/* Webkit scrollbar styles */
+.sequence::-webkit-scrollbar {
+  height: 8px;
+}
+
+.sequence::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.sequence::-webkit-scrollbar-thumb {
+  background-color: #4CAF50;
+  border-radius: 4px;
+}
+
+.sequence-item {
+  padding: 8px 12px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  font-weight: bold;
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+/* Regular runs (1,2,3,4,6) */
+.sequence-item:not(.over-separator):not([data-type="WD"]):not([data-type="LB"]):not([data-type="W"]):not([data-type="NB"]) {
+  color: #2196F3; /* Blue color for regular runs */
+}
+
+/* Wide */
+.sequence-item[data-type="WD"] {
+  color: #FF9800; /* Orange color for Wide */
+}
+
+/* Leg Bye */
+.sequence-item[data-type="LB"] {
+  color: #9C27B0; /* Purple color for Leg Bye */
+}
+
+/* Wicket and No Ball */
+.sequence-item[data-type="W"],
+.sequence-item[data-type="NB"] {
+  color: #F44336; /* Red color for both Wicket and No Ball */
+}
+
+.sequence-item.over-separator {
+  background-color: #4CAF50;
+  color: white;
+  padding: 8px 12px;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
