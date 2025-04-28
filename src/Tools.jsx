@@ -53,6 +53,9 @@ function Tools() {
     setRecentScores(prev => [...prev, 'W']);
     setSequence(prev => [...prev, 'W']);
     updateValidBall();
+    
+    const event = new CustomEvent('wicketFallen', { detail: { wicketNumber: wickets + 1 } });
+    window.dispatchEvent(event);
   };
 
   const handleNoBall = () => {

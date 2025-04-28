@@ -11,7 +11,10 @@ function Core() {
   const [selectedBowler, setSelectedBowler] = useState('');
   const [playerStats, setPlayerStats] = useState({});
   const [bowlerStats, setBowlerStats] = useState({});
-  const [availableBatters, setAvailableBatters] = useState([]); // New for Add Batter dropdown
+  const [availableBatters, setAvailableBatters] = useState([]);
+  const [showInitialDropdowns, setShowInitialDropdowns] = useState(true);
+  const [showNewBatterDropdown, setShowNewBatterDropdown] = useState(false);
+  const [outBatterIndex, setOutBatterIndex] = useState(null);
 
   useEffect(() => {
     if (battingTeamKey) {
@@ -23,7 +26,7 @@ function Core() {
       setBowlingTeamKey(battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data');
       setBattingPlayers(battingTeam?.players || []);
       setBowlingPlayers(bowlingTeam?.players || []);
-      setAvailableBatters(battingTeam?.players || []); // Initialize available batters
+      setAvailableBatters(battingTeam?.players || []);
     }
   }, [battingTeamKey]);
 
@@ -43,21 +46,18 @@ function Core() {
     }));
 
     setAvailableBatters((prev) => prev.filter((p) => p !== value));
+
+    if (updatedBatters.every(batter => batter !== '')) {
+      setShowInitialDropdowns(false);
+    }
   };
 
-  const handleBowlerChange = (value) => {
-    setSelectedBowler(value);
-    setBowlerStats({
-      overs: 0,
-      economy: 0,
-      wickets: 0,
-      dots: 0,
-    });
-  };
+  const handleNewBatterSelection = (newBatter) => {
+    if (outBatterIndex === null) return;
 
-  const handleBatterOut = (index, newBatter) => {
     const updatedBatters = [...selectedBatters];
-    updatedBatters[index] = newBatter;
+    const oldBatter = updatedBatters[outBatterIndex];
+    updatedBatters[outBatterIndex] = newBatter;
     setSelectedBatters(updatedBatters);
 
     setPlayerStats((prev) => ({
@@ -70,7 +70,31 @@ function Core() {
       },
     }));
 
-    setAvailableBatters((prev) => prev.filter((p) => p !== newBatter));
+    setAvailableBatters((prev) => {
+      const newAvailable = [...prev];
+      if (oldBatter) {
+        newAvailable.push(oldBatter);
+      }
+      return newAvailable.filter((p) => p !== newBatter);
+    });
+
+    setShowNewBatterDropdown(false);
+    setOutBatterIndex(null);
+  };
+
+  const handleBowlerChange = (value) => {
+    setSelectedBowler(value);
+    setBowlerStats({
+      overs: 0,
+      economy: 0,
+      wickets: 0,
+      dots: 0,
+    });
+  };
+
+  const handleWicket = (batterIndex) => {
+    setShowNewBatterDropdown(true);
+    setOutBatterIndex(batterIndex);
   };
 
   return (
@@ -88,34 +112,50 @@ function Core() {
 
       {battingTeamKey && (
         <>
-        <div style={{display:'flex',gap:'300px'}}>
+          <div style={{display:'flex',gap:'300px'}}>
             <h2>Batting Team: {battingTeamKey === 'team1Data' ? 'Team 1' : 'Team 2'}</h2>
             <h2>Bowling Team: {battingTeamKey === 'team1Data' ? 'Team 2' : 'Team 1'}</h2>
-        </div>
-      
+          </div>
           
           <h3>Batters</h3>
-          <div className="dropdowns">
-            {[0, 1].map((i) => (
+          {showInitialDropdowns && (
+            <div className="dropdowns">
+              {[0, 1].map((i) => (
+                <select
+                  key={i}
+                  value={selectedBatters[i]}
+                  onChange={(e) => handleBatterChange(i, e.target.value)}
+                >
+                  <option value="">-- Select Batter {i + 1} --</option>
+                  {battingPlayers
+                    .filter(
+                      (player) =>
+                        !selectedBatters.includes(player) || selectedBatters[i] === player
+                    )
+                    .map((player, idx) => (
+                      <option key={idx} value={player}>
+                        {player}
+                      </option>
+                    ))}
+                </select>
+              ))}
+            </div>
+          )}
+
+          {showNewBatterDropdown && (
+            <div className="new-batter-dropdown">
               <select
-                key={i}
-                value={selectedBatters[i]}
-                onChange={(e) => handleBatterChange(i, e.target.value)}
+                onChange={(e) => handleNewBatterSelection(e.target.value)}
               >
-                <option value="">-- Select Batter {i + 1} --</option>
-                {battingPlayers
-                  .filter(
-                    (player) =>
-                      !selectedBatters.includes(player) || selectedBatters[i] === player
-                  )
-                  .map((player, idx) => (
-                    <option key={idx} value={player}>
-                      {player}
-                    </option>
-                  ))}
+                <option value="">-- Select New Batter --</option>
+                {availableBatters.map((batter, index) => (
+                  <option key={index} value={batter}>
+                    {batter}
+                  </option>
+                ))}
               </select>
-            ))}
-          </div>
+            </div>
+          )}
 
           <table className="stats-table">
             <thead>
@@ -125,7 +165,6 @@ function Core() {
                 <th>Score</th>
                 <th>4s</th>
                 <th>6s</th>
-                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -137,20 +176,6 @@ function Core() {
                     <td>{playerStats[player]?.score || 0}</td>
                     <td>{playerStats[player]?.fours || 0}</td>
                     <td>{playerStats[player]?.sixes || 0}</td>
-                    <td>
-                      {availableBatters.length > 0 && (
-                        <select
-                          onChange={(e) => handleBatterOut(idx, e.target.value)}
-                        >
-                          <option value="">New Batter</option>
-                          {availableBatters.map((batter, index) => (
-                            <option key={index} value={batter}>
-                              {batter}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </td>
                   </tr>
                 )
               )}
