@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './all.css';
 import './core.css';
 
@@ -18,6 +18,18 @@ function Core() {
   const [strikerIndex, setStrikerIndex] = useState(0);
   const [showBowlerSelection, setShowBowlerSelection] = useState(false);
   const [ballsBowled, setBallsBowled] = useState(0);
+  const [team1Data, setTeam1Data] = useState(JSON.parse(localStorage.getItem('team1Data')) || {});
+  const [team2Data, setTeam2Data] = useState(JSON.parse(localStorage.getItem('team2Data')) || {});
+  const [hasStartedBatting, setHasStartedBatting] = useState(false);
+  const initialAlertShown = useRef(false);
+  const [wickets, setWickets] = useState(0);
+
+  useEffect(() => {
+    if (!initialAlertShown.current && !battingTeamKey && (team1Data.players?.length > 0 || team2Data.players?.length > 0)) {
+      alert('Please select the batting team first');
+      initialAlertShown.current = true;
+    }
+  }, [team1Data, team2Data, battingTeamKey]);
 
   useEffect(() => {
     if (battingTeamKey) {
@@ -82,7 +94,55 @@ function Core() {
       }
     };
 
-    const handleWicketFallen = () => {
+    const handleCheckAvailableBatsmen = () => {
+      // Get list of available batsmen (players not yet out)
+      const availableBatsmen = battingPlayers.filter(player => {
+        const stats = playerStats[player];
+        return !stats || stats.ballsFaced === 0;
+      });
+
+      if (availableBatsmen.length === 0) {
+        // No batsmen left, end innings
+        setTimeout(() => {
+          alert('First innings completed! Now the other team will bat.');
+          // Switch teams
+          const newBattingTeamKey = battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
+          const newBowlingTeamKey = newBattingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
+          
+          setBattingTeamKey(newBattingTeamKey);
+          setBowlingTeamKey(newBowlingTeamKey);
+          setBattingPlayers(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+          setBowlingPlayers(newBowlingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+          
+          // Reset all stats for the new innings
+          setSelectedBatters(['', '']);
+          setSelectedBowler('');
+          setPlayerStats({});
+          setAllBowlerStats({});
+          setAvailableBatters(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+          setShowInitialDropdowns(true);
+          setShowNewBatterDropdown(false);
+          setOutBatterIndex(null);
+          setStrikerIndex(0);
+          setShowBowlerSelection(false);
+          setBallsBowled(0);
+          setHasStartedBatting(false);
+
+          // Dispatch events to reset the game state
+          const event = new CustomEvent('battersNotSelected');
+          window.dispatchEvent(event);
+          const bowlerEvent = new CustomEvent('bowlerRequired');
+          window.dispatchEvent(bowlerEvent);
+        }, 5000);
+      } else {
+        // Show alert to select new batsman
+        alert('Please select a new batsman');
+        const event = new CustomEvent('batterRequired');
+        window.dispatchEvent(event);
+      }
+    };
+
+    const handleWicketFallen = (e) => {
       const outBatter = selectedBatters[strikerIndex];
       if (outBatter) {
         setOutBatterIndex(strikerIndex);
@@ -97,6 +157,44 @@ function Core() {
             wickets: (prev[selectedBowler]?.wickets || 0) + 1
           }
         }));
+      }
+
+      // Check if this was the last wicket of the innings
+      if (wickets >= battingPlayers.length - 2) {
+        // First update UI
+        const newBattingTeamKey = battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
+        const newBowlingTeamKey = newBattingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
+        
+        setBattingTeamKey(newBattingTeamKey);
+        setBowlingTeamKey(newBowlingTeamKey);
+        setBattingPlayers(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+        setBowlingPlayers(newBowlingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+        
+        // Reset all stats for the new innings
+        setSelectedBatters(['', '']);
+        setSelectedBowler('');
+        setPlayerStats({});
+        setAllBowlerStats({});
+        setAvailableBatters(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+        setShowInitialDropdowns(true);
+        setShowNewBatterDropdown(false);
+        setOutBatterIndex(null);
+        setStrikerIndex(0);
+        setShowBowlerSelection(false);
+        setBallsBowled(0);
+        setHasStartedBatting(false);
+
+        // Then show alert after UI update
+        setTimeout(() => {
+          const currentScore = Object.values(playerStats).reduce((sum, stats) => sum + (stats.score || 0), 0);
+          alert(`First innings completed! Target is ${currentScore + 1}`);
+          
+          // Dispatch events to reset the game state
+          const event = new CustomEvent('battersNotSelected');
+          window.dispatchEvent(event);
+          const bowlerEvent = new CustomEvent('bowlerRequired');
+          window.dispatchEvent(bowlerEvent);
+        }, 100);
       }
     };
 
@@ -127,6 +225,7 @@ function Core() {
 
     window.addEventListener('scoreUpdate', handleScoreUpdate);
     window.addEventListener('specialUpdate', handleSpecialUpdate);
+    window.addEventListener('checkAvailableBatsmen', handleCheckAvailableBatsmen);
     window.addEventListener('wicketFallen', handleWicketFallen);
     window.addEventListener('overComplete', handleOverComplete);
     window.addEventListener('toggleStriker', handleToggleStriker);
@@ -135,12 +234,24 @@ function Core() {
     return () => {
       window.removeEventListener('scoreUpdate', handleScoreUpdate);
       window.removeEventListener('specialUpdate', handleSpecialUpdate);
+      window.removeEventListener('checkAvailableBatsmen', handleCheckAvailableBatsmen);
       window.removeEventListener('wicketFallen', handleWicketFallen);
       window.removeEventListener('overComplete', handleOverComplete);
       window.removeEventListener('toggleStriker', handleToggleStriker);
       window.removeEventListener('updateBowlerStats', handleUpdateBowlerStats);
     };
-  }, [selectedBatters, strikerIndex, selectedBowler]);
+  }, [selectedBatters, strikerIndex, selectedBowler, wickets, battingPlayers.length, battingTeamKey, team1Data, team2Data]);
+
+  useEffect(() => {
+    // Listen for team data updates
+    const handleTeamDataUpdate = () => {
+      setTeam1Data(JSON.parse(localStorage.getItem('team1Data')) || {});
+      setTeam2Data(JSON.parse(localStorage.getItem('team2Data')) || {});
+    };
+
+    window.addEventListener('teamDataUpdated', handleTeamDataUpdate);
+    return () => window.removeEventListener('teamDataUpdated', handleTeamDataUpdate);
+  }, []);
 
   const calculateStrikeRate = (score, balls) => {
     if (balls === 0) return 0;
@@ -149,7 +260,8 @@ function Core() {
 
   const calculateEconomy = (runs, balls) => {
     if (balls === 0) return 0;
-    return ((runs / balls) * 6).toFixed(2);
+    const overs = Math.floor(balls / 6) + (balls % 6) / 10;
+    return (runs / overs / 2).toFixed(2);
   };
 
   const formatOvers = (balls) => {
@@ -173,10 +285,18 @@ function Core() {
       },
     }));
 
+    // Remove selected batter from available batters
     setAvailableBatters((prev) => prev.filter((p) => p !== value));
 
     if (updatedBatters.every(batter => batter !== '')) {
       setShowInitialDropdowns(false);
+      // Dispatch event when both batters are selected
+      const event = new CustomEvent('battersSelected');
+      window.dispatchEvent(event);
+    } else {
+      // Dispatch event when batters are not fully selected
+      const event = new CustomEvent('battersNotSelected');
+      window.dispatchEvent(event);
     }
   };
 
@@ -198,41 +318,109 @@ function Core() {
       },
     }));
 
-    setAvailableBatters((prev) => {
-      const newAvailable = [...prev];
-      if (oldBatter) {
-        newAvailable.push(oldBatter);
-      }
-      return newAvailable.filter((p) => p !== newBatter);
-    });
+    // Remove new batter from available batters
+    setAvailableBatters((prev) => prev.filter((p) => p !== newBatter));
 
     setShowNewBatterDropdown(false);
     setOutBatterIndex(null);
+
+    // Dispatch event when new batter is selected
+    const event = new CustomEvent('battersSelected');
+    window.dispatchEvent(event);
   };
 
   const handleBowlerChange = (value) => {
     setSelectedBowler(value);
     setShowBowlerSelection(false);
+    
+    // Initialize bowler stats if not exists
+    setAllBowlerStats(prev => ({
+      ...prev,
+      [value]: prev[value] || {
+        runsGiven: 0,
+        ballsBowled: 0,
+        wickets: 0,
+        dots: 0
+      }
+    }));
+
+    // Notify that bowler is selected
+    const event = new CustomEvent('bowlerSelected');
+    window.dispatchEvent(event);
+  };
+
+  const handleTeamSwitch = () => {
+    if (wickets >= battingPlayers.length - 2) {
+      // Switch teams
+      const newBattingTeamKey = battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
+      const newBowlingTeamKey = newBattingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
+      
+      setBattingTeamKey(newBattingTeamKey);
+      setBowlingTeamKey(newBowlingTeamKey);
+      setBattingPlayers(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+      setBowlingPlayers(newBowlingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+      
+      // Reset all stats for the new innings
+      setSelectedBatters(['', '']);
+      setSelectedBowler('');
+      setPlayerStats({});
+      setAllBowlerStats({});
+      setAvailableBatters(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+      setShowInitialDropdowns(true);
+      setShowNewBatterDropdown(false);
+      setOutBatterIndex(null);
+      setStrikerIndex(0);
+      setShowBowlerSelection(false);
+      setBallsBowled(0);
+    }
   };
 
   return (
     <div className="core-container">
-      {!battingTeamKey && (
-        <select
-          value={battingTeamKey}
-          onChange={(e) => setBattingTeamKey(e.target.value)}
+      <div className="team-headers">
+        <button 
+          className={`team-button ${battingTeamKey === 'team1Data' ? 'active' : ''}`}
+          onClick={() => {
+            if (battingTeamKey === 'team2Data') {
+              alert('Team 1 is yet to bat');
+              return;
+            }
+            if (!battingTeamKey) {
+              setBattingTeamKey('team1Data');
+              setBowlingTeamKey('team2Data');
+              setBattingPlayers(team1Data.players || []);
+              setBowlingPlayers(team2Data.players || []);
+              setAvailableBatters(team1Data.players || []);
+            }
+          }}
         >
-          <option value="">-- Select Batting Team --</option>
-          <option value="team1Data">Team 1</option>
-          <option value="team2Data">Team 2</option>
-        </select>
-      )}
+          <h1>{team1Data.teamName || 'Team 1'}</h1>
+        </button>
+        <button 
+          className={`team-button ${battingTeamKey === 'team2Data' ? 'active' : ''}`}
+          onClick={() => {
+            if (battingTeamKey === 'team1Data') {
+              alert('Team 2 is yet to bat');
+              return;
+            }
+            if (!battingTeamKey) {
+              setBattingTeamKey('team2Data');
+              setBowlingTeamKey('team1Data');
+              setBattingPlayers(team2Data.players || []);
+              setBowlingPlayers(team1Data.players || []);
+              setAvailableBatters(team2Data.players || []);
+            }
+          }}
+        >
+          <h1>{team2Data.teamName || 'Team 2'}</h1>
+        </button>
+      </div>
 
       {battingTeamKey && (
         <>
           <div style={{display:'flex',gap:'300px'}}>
-            <h2>Batting Team: {battingTeamKey === 'team1Data' ? 'Team 1' : 'Team 2'}</h2>
-            <h2>Bowling Team: {battingTeamKey === 'team1Data' ? 'Team 2' : 'Team 1'}</h2>
+            <h2>Batting Team: {battingTeamKey === 'team1Data' ? team1Data.teamName || 'Team 1' : team2Data.teamName || 'Team 2'}</h2>
+            <h2>Bowling Team: {battingTeamKey === 'team1Data' ? team2Data.teamName || 'Team 2' : team1Data.teamName || 'Team 1'}</h2>
           </div>
           
           <h3>Batters</h3>
@@ -275,6 +463,7 @@ function Core() {
             </div>
           )}
 
+          <h3>Batting Stats</h3>
           <table className="stats-table">
             <thead>
               <tr>
@@ -287,18 +476,29 @@ function Core() {
               </tr>
             </thead>
             <tbody>
-              {selectedBatters.map((player, idx) =>
-                player && (
-                  <tr key={idx} className={idx === strikerIndex ? 'striker' : ''}>
+              {Object.entries(playerStats).map(([player, stats]) => {
+                const isCurrentBatter = selectedBatters.includes(player);
+                const isStriker = selectedBatters[strikerIndex] === player;
+                const isOut = !isCurrentBatter && stats.ballsFaced > 0;
+                
+                return (
+                  <tr 
+                    key={player} 
+                    className={`
+                      ${isCurrentBatter ? 'active-batter' : ''} 
+                      ${isStriker ? 'striker' : ''}
+                      ${isOut ? 'out-batter' : ''}
+                    `}
+                  >
                     <td>{player}</td>
-                    <td>{playerStats[player]?.ballsFaced || 0}</td>
-                    <td>{playerStats[player]?.score || 0}</td>
-                    <td>{playerStats[player]?.fours || 0}</td>
-                    <td>{playerStats[player]?.sixes || 0}</td>
-                    <td>{calculateStrikeRate(playerStats[player]?.score || 0, playerStats[player]?.ballsFaced || 0)}</td>
+                    <td>{stats.ballsFaced || 0}</td>
+                    <td>{stats.score || 0}</td>
+                    <td>{stats.fours || 0}</td>
+                    <td>{stats.sixes || 0}</td>
+                    <td>{calculateStrikeRate(stats.score || 0, stats.ballsFaced || 0)}</td>
                   </tr>
-                )
-              )}
+                );
+              })}
             </tbody>
           </table>
 

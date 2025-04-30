@@ -11,7 +11,58 @@ function Tools() {
   const [recentScores, setRecentScores] = useState([]);
   const [sequence, setSequence] = useState([]);
   const [runsInCurrentOver, setRunsInCurrentOver] = useState(0);
+  const [isBowlerSelected, setIsBowlerSelected] = useState(false);
+  const [isBatterSelected, setIsBatterSelected] = useState(true);
+  const [areBattersSelected, setAreBattersSelected] = useState(false);
   const sequenceRef = useRef(null);
+
+  useEffect(() => {
+    const handleBattersSelected = () => {
+      setAreBattersSelected(true);
+    };
+
+    const handleBattersNotSelected = () => {
+      setAreBattersSelected(false);
+    };
+
+    window.addEventListener('battersSelected', handleBattersSelected);
+    window.addEventListener('battersNotSelected', handleBattersNotSelected);
+
+    return () => {
+      window.removeEventListener('battersSelected', handleBattersSelected);
+      window.removeEventListener('battersNotSelected', handleBattersNotSelected);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleBowlerSelected = () => {
+      setIsBowlerSelected(true);
+    };
+
+    const handleBowlerRequired = () => {
+      setIsBowlerSelected(false);
+    };
+
+    const handleBatterRequired = () => {
+      setIsBatterSelected(false);
+    };
+
+    const handleBatterSelected = () => {
+      setIsBatterSelected(true);
+    };
+
+    window.addEventListener('bowlerSelected', handleBowlerSelected);
+    window.addEventListener('bowlerRequired', handleBowlerRequired);
+    window.addEventListener('batterRequired', handleBatterRequired);
+    window.addEventListener('batterSelected', handleBatterSelected);
+
+    return () => {
+      window.removeEventListener('bowlerSelected', handleBowlerSelected);
+      window.removeEventListener('bowlerRequired', handleBowlerRequired);
+      window.removeEventListener('batterRequired', handleBatterRequired);
+      window.removeEventListener('batterSelected', handleBatterSelected);
+    };
+  }, []);
 
   const scrollToLatest = () => {
     if (sequenceRef.current) {
@@ -36,12 +87,34 @@ function Tools() {
       const event = new CustomEvent('toggleStriker');
       window.dispatchEvent(event);
       
-      // Alert for new bowler selection
-      alert('Please select a new bowler for the next over');
+      // Wait 1 second before showing alert
+      setTimeout(() => {
+        alert('Please select a new bowler for the next over');
+        const event = new CustomEvent('bowlerRequired');
+        window.dispatchEvent(event);
+      }, 1000);
     }
   };
 
+  const validateAction = () => {
+    if (!areBattersSelected) {
+      alert('Please select both batters first');
+      return false;
+    }
+    if (!isBowlerSelected) {
+      alert('Please select a bowler first');
+      return false;
+    }
+    if (!isBatterSelected) {
+      alert('Please select a new batsman first');
+      return false;
+    }
+    return true;
+  };
+
   const handleScore = (runs) => {
+    if (!validateAction()) return;
+    
     setScore(prev => prev + runs);
     setRecentScores(prev => [...prev, runs]);
     setSequence(prev => [...prev, runs]);
@@ -68,6 +141,8 @@ function Tools() {
   };
 
   const handleSpecial = (type) => {
+    if (!validateAction()) return;
+    
     setScore(prev => prev + 1);
     setRecentScores(prev => [...prev, type]);
     setSequence(prev => [...prev, type]);
@@ -91,6 +166,8 @@ function Tools() {
   };
 
   const handleWicket = () => {
+    if (!validateAction()) return;
+    
     setWickets(prev => prev + 1);
     setRecentScores(prev => [...prev, 'W']);
     setSequence(prev => [...prev, 'W']);
@@ -110,9 +187,25 @@ function Tools() {
       }
     });
     window.dispatchEvent(bowlerEvent);
+
+    // Check if this is the last wicket
+    if (wickets + 1 >= battingPlayers.length - 1) {
+      setTimeout(() => {
+        alert(`First innings completed! Target is ${score + 1}`);
+      }, 1000);
+    } else {
+      // Show alert to select new batsman
+      setTimeout(() => {
+        alert('Please select a new batsman');
+        const event = new CustomEvent('batterRequired');
+        window.dispatchEvent(event);
+      }, 1000);
+    }
   };
 
   const handleNoBall = () => {
+    if (!validateAction()) return;
+    
     setScore(prev => prev + 1);
     setRecentScores(prev => [...prev, 'NB']);
     setSequence(prev => [...prev, 'NB']);
@@ -133,6 +226,8 @@ function Tools() {
   };
 
   const handleBallClick = () => {
+    if (!validateAction()) return;
+    
     const event = new CustomEvent('scoreUpdate', {
       detail: {
         runs: 0,
@@ -159,11 +254,18 @@ function Tools() {
     alert('Please select a new bowler for the next over');
   };
 
+  const handleTeamData = (teamKey, data) => {
+    localStorage.setItem(teamKey, JSON.stringify(data));
+    // Dispatch event to notify Core component
+    const event = new CustomEvent('teamDataUpdated');
+    window.dispatchEvent(event);
+  };
+
   return (
     <div className="tools">
       <div className="score-board">
         <div className="score">
-          <h3>Score: {score}-{wickets}</h3>
+          <h3>Score: {score}/{wickets}</h3>
         </div>
         <div className="overs">
           <h3>Overs: {overs}.{ballsInCurrentOver}</h3>
@@ -212,11 +314,11 @@ function Tools() {
       <div className="team">
         <button className="add-team">
           <h1>Team 1</h1>
-          <Team1 />
+          <Team1 onTeamData={(data) => handleTeamData('team1Data', data)} />
         </button>
         <button className="add-team">
           <h1>Team 2</h1>
-          <Team2 />
+          <Team2 onTeamData={(data) => handleTeamData('team2Data', data)} />
         </button>
       </div>
     </div>

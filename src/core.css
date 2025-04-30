@@ -83,3 +83,68 @@
     }
   }
   
+  .active-batter {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .striker {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .out-batter {
+    background-color: rgba(255, 0, 0, 0.3);
+  }
+  
+  .team-headers {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background-color: #333;
+    border-radius: 8px;
+  }
+  
+  .team-selection {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  
+  .team-selection h2 {
+    margin-bottom: 1rem;
+    color: white;
+  }
+  
+  .team-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+  }
+  
+  .team-button {
+    flex: 1;
+    margin: 0 1rem;
+    padding: 1rem;
+    background-color: #444;
+    border: 2px solid #666;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .team-button.active {
+    background-color: #555;
+    border-color: #007bff;
+  }
+  
+  .team-button h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: white;
+  }
+  
+  .team-button p {
+    margin: 0.5rem 0 0;
+    font-size: 1.2rem;
+    color: #ccc;
+  }
+  

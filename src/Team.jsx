@@ -1,7 +1,7 @@
 // Team.js
 import React, { useState, useEffect } from 'react';
 
-function Team({ teamKey }) {
+function Team({ teamKey, onTeamData }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [teamName, setTeamName] = useState('');
@@ -20,8 +20,9 @@ function Team({ teamKey }) {
   useEffect(() => {
     if (submittedTeam) {
       localStorage.setItem(teamKey, JSON.stringify(submittedTeam));
+      onTeamData(submittedTeam);
     }
-  }, [submittedTeam, teamKey]);
+  }, [submittedTeam, teamKey, onTeamData]);
 
   const openModal = () => {
     setIsModalOpen(true);
@@ -196,7 +197,7 @@ const styles = {
     padding: '0.75rem 1.5rem',
     fontSize: '1rem',
     cursor: 'pointer',
-    width: '100%' // Full width to match vertical stacking
+    width: '100%'
   },
   teamCard: {
     background: '#f1f1f1',
@@ -206,7 +207,7 @@ const styles = {
   },
   playerButtonWrap: {
     display: 'flex',
-    flexDirection: 'column', // Stack vertically
+    flexDirection: 'column',
     gap: '0.5rem',
     marginTop: '1rem'
   },
@@ -216,7 +217,7 @@ const styles = {
     border: '1px solid #ccc',
     borderRadius: '5px',
     cursor: 'default',
-    width: '100%' // Full width for stacking
+    width: '100%'
   },
   editButton: {
     marginTop: '1rem',
@@ -225,7 +226,7 @@ const styles = {
     color: 'white',
     border: 'none',
     cursor: 'pointer',
-    width: '100%' // Full width for stacking
+    width: '100%'
   },
   modalOverlay: {
     position: 'fixed',
@@ -243,14 +244,13 @@ const styles = {
     borderRadius: '10px',
     width: '100%',
     maxWidth: '500px',
-    height: '100%', // Fill full height of overlay
+    height: '100%',
     maxHeight: '90vh',
-    overflowY: 'auto', // Enable scroll if needed
+    overflowY: 'auto',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
     display: 'flex',
     flexDirection: 'column'
   },
-  
   input: {
     width: '100%',
     padding: '0.5rem',
@@ -290,11 +290,11 @@ const styles = {
     margin: '0.5rem 0',
     padding: '0.5rem 1rem',
     cursor: 'pointer',
-    width: '100%' // Full width for stacking
+    width: '100%'
   },
   buttonRow: {
     display: 'flex',
-    flexDirection: 'column', // Stack vertically
+    flexDirection: 'column',
     gap: '0.5rem',
     marginTop: '1rem'
   },
@@ -304,7 +304,7 @@ const styles = {
     border: 'none',
     padding: '0.5rem 1rem',
     cursor: 'pointer',
-    width: '100%' // Full width for stacking
+    width: '100%'
   },
   cancel: {
     backgroundColor: '#777',
@@ -312,9 +312,8 @@ const styles = {
     border: 'none',
     padding: '0.5rem 1rem',
     cursor: 'pointer',
-    width: '100%' // Full width for stacking
+    width: '100%'
   }
 };
-
 
 export default Team;
