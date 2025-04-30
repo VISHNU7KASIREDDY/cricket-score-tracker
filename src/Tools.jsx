@@ -25,12 +25,24 @@ function Tools() {
       setAreBattersSelected(false);
     };
 
+    const handleBatterRequired = () => {
+      setIsBatterSelected(false);
+    };
+
+    const handleBatterSelected = () => {
+      setIsBatterSelected(true);
+    };
+
     window.addEventListener('battersSelected', handleBattersSelected);
     window.addEventListener('battersNotSelected', handleBattersNotSelected);
+    window.addEventListener('batterRequired', handleBatterRequired);
+    window.addEventListener('batterSelected', handleBatterSelected);
 
     return () => {
       window.removeEventListener('battersSelected', handleBattersSelected);
       window.removeEventListener('battersNotSelected', handleBattersNotSelected);
+      window.removeEventListener('batterRequired', handleBatterRequired);
+      window.removeEventListener('batterSelected', handleBatterSelected);
     };
   }, []);
 

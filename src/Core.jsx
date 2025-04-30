@@ -23,6 +23,12 @@ function Core() {
   const [hasStartedBatting, setHasStartedBatting] = useState(false);
   const initialAlertShown = useRef(false);
   const [wickets, setWickets] = useState(0);
+  const [team1Stats, setTeam1Stats] = useState(JSON.parse(localStorage.getItem('team1Stats')) || {});
+  const [team2Stats, setTeam2Stats] = useState(JSON.parse(localStorage.getItem('team2Stats')) || {});
+  const [team1UI, setTeam1UI] = useState(null);
+  const [team2UI, setTeam2UI] = useState(null);
+  const [currentInnings, setCurrentInnings] = useState(1);
+  const [currentTeamKey, setCurrentTeamKey] = useState(null);
 
   useEffect(() => {
     if (!initialAlertShown.current && !battingTeamKey && (team1Data.players?.length > 0 || team2Data.players?.length > 0)) {
@@ -47,6 +53,12 @@ function Core() {
 
   useEffect(() => {
     const handleScoreUpdate = (e) => {
+      // Check if we need to select a new batsman
+      if (showNewBatterDropdown) {
+        alert('Please select a new batsman first');
+        return;
+      }
+
       const { runs, isFour, isSix } = e.detail;
       const striker = selectedBatters[strikerIndex];
       
@@ -80,6 +92,12 @@ function Core() {
     };
 
     const handleSpecialUpdate = (e) => {
+      // Check if we need to select a new batsman
+      if (showNewBatterDropdown) {
+        alert('Please select a new batsman first');
+        return;
+      }
+
       const { type } = e.detail;
       
       if (selectedBowler) {
@@ -143,10 +161,18 @@ function Core() {
     };
 
     const handleWicketFallen = (e) => {
+      // First increment wicket count
+      setWickets(prev => prev + 1);
+
       const outBatter = selectedBatters[strikerIndex];
       if (outBatter) {
         setOutBatterIndex(strikerIndex);
         setShowNewBatterDropdown(true);
+        // Remove the out batter from available batters
+        setAvailableBatters(prev => prev.filter(batter => batter !== outBatter));
+        // Notify that a new batter is required
+        const event = new CustomEvent('batterRequired');
+        window.dispatchEvent(event);
       }
 
       if (selectedBowler) {
@@ -160,8 +186,40 @@ function Core() {
       }
 
       // Check if this was the last wicket of the innings
-      if (wickets >= battingPlayers.length - 2) {
-        // First update UI
+      if (wickets + 1 >= battingPlayers.length - 1) {
+        // Store current team's UI before switching
+        const currentScore = Object.values(playerStats).reduce((sum, stats) => sum + (stats.score || 0), 0);
+        const teamStats = {
+          score: currentScore,
+          wickets: wickets + 1,
+          playerStats: playerStats,
+          bowlerStats: allBowlerStats
+        };
+
+        if (battingTeamKey === 'team1Data') {
+          setTeam1Stats(teamStats);
+          setTeam1UI({
+            selectedBatters,
+            selectedBowler,
+            playerStats,
+            allBowlerStats,
+            wickets
+          });
+          localStorage.setItem('team1Stats', JSON.stringify(teamStats));
+        } else {
+          setTeam2Stats(teamStats);
+          setTeam2UI({
+            selectedBatters,
+            selectedBowler,
+            playerStats,
+            allBowlerStats,
+            wickets
+          });
+          localStorage.setItem('team2Stats', JSON.stringify(teamStats));
+        }
+
+        // Switch to second innings
+        setCurrentInnings(2);
         const newBattingTeamKey = battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
         const newBowlingTeamKey = newBattingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
         
@@ -183,18 +241,18 @@ function Core() {
         setShowBowlerSelection(false);
         setBallsBowled(0);
         setHasStartedBatting(false);
+        setWickets(0);
 
-        // Then show alert after UI update
+        // Then show alert after 0.5 seconds
         setTimeout(() => {
-          const currentScore = Object.values(playerStats).reduce((sum, stats) => sum + (stats.score || 0), 0);
           alert(`First innings completed! Target is ${currentScore + 1}`);
-          
+
           // Dispatch events to reset the game state
           const event = new CustomEvent('battersNotSelected');
           window.dispatchEvent(event);
           const bowlerEvent = new CustomEvent('bowlerRequired');
           window.dispatchEvent(bowlerEvent);
-        }, 100);
+        }, 500);
       }
     };
 
@@ -240,7 +298,7 @@ function Core() {
       window.removeEventListener('toggleStriker', handleToggleStriker);
       window.removeEventListener('updateBowlerStats', handleUpdateBowlerStats);
     };
-  }, [selectedBatters, strikerIndex, selectedBowler, wickets, battingPlayers.length, battingTeamKey, team1Data, team2Data]);
+  }, [selectedBatters, strikerIndex, selectedBowler, showNewBatterDropdown, wickets, battingPlayers.length, battingTeamKey, team1Data, team2Data]);
 
   useEffect(() => {
     // Listen for team data updates
@@ -285,8 +343,16 @@ function Core() {
       },
     }));
 
-    // Remove selected batter from available batters
-    setAvailableBatters((prev) => prev.filter((p) => p !== value));
+    setAvailableBatters((prev) => {
+      const newAvailable = [...prev];
+      if (value) {
+        const index = newAvailable.indexOf(value);
+        if (index !== -1) {
+          newAvailable.splice(index, 1);
+        }
+      }
+      return newAvailable;
+    });
 
     if (updatedBatters.every(batter => batter !== '')) {
       setShowInitialDropdowns(false);
@@ -318,14 +384,14 @@ function Core() {
       },
     }));
 
-    // Remove new batter from available batters
-    setAvailableBatters((prev) => prev.filter((p) => p !== newBatter));
+    // Remove the new batter from available batters
+    setAvailableBatters(prev => prev.filter(batter => batter !== newBatter));
 
     setShowNewBatterDropdown(false);
     setOutBatterIndex(null);
 
-    // Dispatch event when new batter is selected
-    const event = new CustomEvent('battersSelected');
+    // Notify that new batter is selected
+    const event = new CustomEvent('batterSelected');
     window.dispatchEvent(event);
   };
 
@@ -375,22 +441,64 @@ function Core() {
     }
   };
 
+  const handleTeamClick = (teamKey) => {
+    const stats = teamKey === 'team1Data' ? team1Stats : team2Stats;
+    if (stats && Object.keys(stats).length > 0) {
+      alert(`
+Team Stats:
+Score: ${stats.score}/${stats.wickets}
+
+Batting Stats:
+${Object.entries(stats.playerStats || {}).map(([player, stat]) => 
+  `${player}: ${stat.score} (${stat.ballsFaced} balls, ${stat.fours} fours, ${stat.sixes} sixes)`
+).join('\n')}
+
+Bowling Stats:
+${Object.entries(stats.bowlerStats || {}).map(([bowler, stat]) => 
+  `${bowler}: ${stat.wickets} wickets, ${stat.runsGiven} runs, ${stat.ballsBowled} balls`
+).join('\n')}
+      `);
+    }
+  };
+
   return (
     <div className="core-container">
       <div className="team-headers">
         <button 
           className={`team-button ${battingTeamKey === 'team1Data' ? 'active' : ''}`}
           onClick={() => {
-            if (battingTeamKey === 'team2Data') {
-              alert('Team 1 is yet to bat');
-              return;
-            }
             if (!battingTeamKey) {
               setBattingTeamKey('team1Data');
               setBowlingTeamKey('team2Data');
               setBattingPlayers(team1Data.players || []);
               setBowlingPlayers(team2Data.players || []);
               setAvailableBatters(team1Data.players || []);
+              setCurrentTeamKey('team1Data');
+            } else if (currentTeamKey === 'team1Data') {
+              // Switch to current UI
+              setSelectedBatters(['', '']);
+              setSelectedBowler('');
+              setPlayerStats({});
+              setAllBowlerStats({});
+              setWickets(0);
+              setBattingTeamKey('team1Data');
+              setBowlingTeamKey('team2Data');
+              setBattingPlayers(team1Data.players || []);
+              setBowlingPlayers(team2Data.players || []);
+              setAvailableBatters(team1Data.players || []);
+              setCurrentTeamKey(null);
+            } else if (team1UI) {
+              // Show first team's preserved UI
+              setSelectedBatters(team1UI.selectedBatters);
+              setSelectedBowler(team1UI.selectedBowler);
+              setPlayerStats(team1UI.playerStats);
+              setAllBowlerStats(team1UI.allBowlerStats);
+              setWickets(team1UI.wickets);
+              setBattingTeamKey('team1Data');
+              setBowlingTeamKey('team2Data');
+              setBattingPlayers(team1Data.players || []);
+              setBowlingPlayers(team2Data.players || []);
+              setCurrentTeamKey('team1Data');
             }
           }}
         >
@@ -399,16 +507,38 @@ function Core() {
         <button 
           className={`team-button ${battingTeamKey === 'team2Data' ? 'active' : ''}`}
           onClick={() => {
-            if (battingTeamKey === 'team1Data') {
-              alert('Team 2 is yet to bat');
-              return;
-            }
             if (!battingTeamKey) {
               setBattingTeamKey('team2Data');
               setBowlingTeamKey('team1Data');
               setBattingPlayers(team2Data.players || []);
               setBowlingPlayers(team1Data.players || []);
               setAvailableBatters(team2Data.players || []);
+              setCurrentTeamKey('team2Data');
+            } else if (currentTeamKey === 'team2Data') {
+              // Switch to current UI
+              setSelectedBatters(['', '']);
+              setSelectedBowler('');
+              setPlayerStats({});
+              setAllBowlerStats({});
+              setWickets(0);
+              setBattingTeamKey('team2Data');
+              setBowlingTeamKey('team1Data');
+              setBattingPlayers(team2Data.players || []);
+              setBowlingPlayers(team1Data.players || []);
+              setAvailableBatters(team2Data.players || []);
+              setCurrentTeamKey(null);
+            } else if (team2UI) {
+              // Show second team's preserved UI
+              setSelectedBatters(team2UI.selectedBatters);
+              setSelectedBowler(team2UI.selectedBowler);
+              setPlayerStats(team2UI.playerStats);
+              setAllBowlerStats(team2UI.allBowlerStats);
+              setWickets(team2UI.wickets);
+              setBattingTeamKey('team2Data');
+              setBowlingTeamKey('team1Data');
+              setBattingPlayers(team2Data.players || []);
+              setBowlingPlayers(team1Data.players || []);
+              setCurrentTeamKey('team2Data');
             }
           }}
         >
