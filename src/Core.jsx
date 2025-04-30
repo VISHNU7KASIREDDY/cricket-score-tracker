@@ -18,6 +18,7 @@ function Core() {
   const [strikerIndex, setStrikerIndex] = useState(0);
   const [showBowlerSelection, setShowBowlerSelection] = useState(false);
   const [ballsBowled, setBallsBowled] = useState(0);
+  const [currentOver, setCurrentOver] = useState(0);
   const [team1Data, setTeam1Data] = useState(JSON.parse(localStorage.getItem('team1Data')) || {});
   const [team2Data, setTeam2Data] = useState(JSON.parse(localStorage.getItem('team2Data')) || {});
   const [hasStartedBatting, setHasStartedBatting] = useState(false);
@@ -29,6 +30,18 @@ function Core() {
   const [team2UI, setTeam2UI] = useState(null);
   const [currentInnings, setCurrentInnings] = useState(1);
   const [currentTeamKey, setCurrentTeamKey] = useState(null);
+  const [matchData, setMatchData] = useState({
+    team1: {
+      innings1: null,
+      innings2: null
+    },
+    team2: {
+      innings1: null,
+      innings2: null
+    }
+  });
+  const [currentScore, setCurrentScore] = useState(0);
+  const [currentOvers, setCurrentOvers] = useState('0.0');
 
   useEffect(() => {
     if (!initialAlertShown.current && !battingTeamKey && (team1Data.players?.length > 0 || team2Data.players?.length > 0)) {
@@ -53,13 +66,12 @@ function Core() {
 
   useEffect(() => {
     const handleScoreUpdate = (e) => {
-      // Check if we need to select a new batsman
       if (showNewBatterDropdown) {
         alert('Please select a new batsman first');
         return;
       }
 
-      const { runs, isFour, isSix } = e.detail;
+      const { runs, isFour, isSix, overs } = e.detail;
       const striker = selectedBatters[strikerIndex];
       
       if (striker) {
@@ -89,16 +101,19 @@ function Core() {
       if (runs % 2 !== 0) {
         setStrikerIndex(prev => (prev === 0 ? 1 : 0));
       }
+
+      // Update current score and overs
+      setCurrentScore(prev => prev + runs);
+      setCurrentOvers(overs);
     };
 
     const handleSpecialUpdate = (e) => {
-      // Check if we need to select a new batsman
       if (showNewBatterDropdown) {
         alert('Please select a new batsman first');
         return;
       }
 
-      const { type } = e.detail;
+      const { type, overs } = e.detail;
       
       if (selectedBowler) {
         setAllBowlerStats(prev => ({
@@ -110,67 +125,33 @@ function Core() {
           }
         }));
       }
+
+      // Update overs for valid balls
+      if (type !== 'WD' && type !== 'NB') {
+        setCurrentOvers(overs);
+      }
     };
 
-    const handleCheckAvailableBatsmen = () => {
-      // Get list of available batsmen (players not yet out)
-      const availableBatsmen = battingPlayers.filter(player => {
-        const stats = playerStats[player];
-        return !stats || stats.ballsFaced === 0;
-      });
-
-      if (availableBatsmen.length === 0) {
-        // No batsmen left, end innings
-        setTimeout(() => {
-          alert('First innings completed! Now the other team will bat.');
-          // Switch teams
-          const newBattingTeamKey = battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
-          const newBowlingTeamKey = newBattingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
-          
-          setBattingTeamKey(newBattingTeamKey);
-          setBowlingTeamKey(newBowlingTeamKey);
-          setBattingPlayers(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
-          setBowlingPlayers(newBowlingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
-          
-          // Reset all stats for the new innings
-          setSelectedBatters(['', '']);
-          setSelectedBowler('');
-          setPlayerStats({});
-          setAllBowlerStats({});
-          setAvailableBatters(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
-          setShowInitialDropdowns(true);
-          setShowNewBatterDropdown(false);
-          setOutBatterIndex(null);
-          setStrikerIndex(0);
-          setShowBowlerSelection(false);
-          setBallsBowled(0);
-          setHasStartedBatting(false);
-
-          // Dispatch events to reset the game state
-          const event = new CustomEvent('battersNotSelected');
-          window.dispatchEvent(event);
-          const bowlerEvent = new CustomEvent('bowlerRequired');
-          window.dispatchEvent(bowlerEvent);
-        }, 5000);
-      } else {
-        // Show alert to select new batsman
-        alert('Please select a new batsman');
-        const event = new CustomEvent('batterRequired');
-        window.dispatchEvent(event);
+    const handleOverUpdate = (e) => {
+      const { overs } = e.detail;
+      if (overs) {
+        setCurrentOvers(overs);
       }
     };
 
     const handleWicketFallen = (e) => {
-      // First increment wicket count
+      if (showNewBatterDropdown) {
+        alert('Please select a new batsman first');
+        return;
+      }
+
       setWickets(prev => prev + 1);
 
       const outBatter = selectedBatters[strikerIndex];
       if (outBatter) {
         setOutBatterIndex(strikerIndex);
         setShowNewBatterDropdown(true);
-        // Remove the out batter from available batters
         setAvailableBatters(prev => prev.filter(batter => batter !== outBatter));
-        // Notify that a new batter is required
         const event = new CustomEvent('batterRequired');
         window.dispatchEvent(event);
       }
@@ -185,40 +166,39 @@ function Core() {
         }));
       }
 
-      // Check if this was the last wicket of the innings
       if (wickets + 1 >= battingPlayers.length - 1) {
-        // Store current team's UI before switching
         const currentScore = Object.values(playerStats).reduce((sum, stats) => sum + (stats.score || 0), 0);
         const teamStats = {
           score: currentScore,
           wickets: wickets + 1,
+          ballsBowled: ballsBowled,
+          overs: currentOvers,
           playerStats: playerStats,
-          bowlerStats: allBowlerStats
+          bowlerStats: allBowlerStats,
+          selectedBatters,
+          selectedBowler,
+          availableBatters,
+          battersTable: Object.entries(playerStats).map(([player, stats]) => ({
+            player,
+            ballsFaced: stats.ballsFaced || 0,
+            score: stats.score || 0,
+            fours: stats.fours || 0,
+            sixes: stats.sixes || 0,
+            strikeRate: calculateStrikeRate(stats.score || 0, stats.ballsFaced || 0)
+          }))
         };
 
-        if (battingTeamKey === 'team1Data') {
-          setTeam1Stats(teamStats);
-          setTeam1UI({
-            selectedBatters,
-            selectedBowler,
-            playerStats,
-            allBowlerStats,
-            wickets
-          });
-          localStorage.setItem('team1Stats', JSON.stringify(teamStats));
-        } else {
-          setTeam2Stats(teamStats);
-          setTeam2UI({
-            selectedBatters,
-            selectedBowler,
-            playerStats,
-            allBowlerStats,
-            wickets
-          });
-          localStorage.setItem('team2Stats', JSON.stringify(teamStats));
-        }
+        setMatchData(prev => {
+          const newData = { ...prev };
+          if (battingTeamKey === 'team1Data') {
+            newData.team1.innings1 = teamStats;
+          } else {
+            newData.team2.innings1 = teamStats;
+          }
+          localStorage.setItem('matchData', JSON.stringify(newData));
+          return newData;
+        });
 
-        // Switch to second innings
         setCurrentInnings(2);
         const newBattingTeamKey = battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
         const newBowlingTeamKey = newBattingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
@@ -228,7 +208,6 @@ function Core() {
         setBattingPlayers(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
         setBowlingPlayers(newBowlingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
         
-        // Reset all stats for the new innings
         setSelectedBatters(['', '']);
         setSelectedBowler('');
         setPlayerStats({});
@@ -242,12 +221,10 @@ function Core() {
         setBallsBowled(0);
         setHasStartedBatting(false);
         setWickets(0);
+        setCurrentOvers('0.0');
 
-        // Then show alert after 0.5 seconds
         setTimeout(() => {
           alert(`First innings completed! Target is ${currentScore + 1}`);
-
-          // Dispatch events to reset the game state
           const event = new CustomEvent('battersNotSelected');
           window.dispatchEvent(event);
           const bowlerEvent = new CustomEvent('bowlerRequired');
@@ -281,18 +258,19 @@ function Core() {
       }
     };
 
+    // Listen for over updates from Tools.jsx
+    window.addEventListener('overUpdate', handleOverUpdate);
     window.addEventListener('scoreUpdate', handleScoreUpdate);
     window.addEventListener('specialUpdate', handleSpecialUpdate);
-    window.addEventListener('checkAvailableBatsmen', handleCheckAvailableBatsmen);
     window.addEventListener('wicketFallen', handleWicketFallen);
     window.addEventListener('overComplete', handleOverComplete);
     window.addEventListener('toggleStriker', handleToggleStriker);
     window.addEventListener('updateBowlerStats', handleUpdateBowlerStats);
 
     return () => {
+      window.removeEventListener('overUpdate', handleOverUpdate);
       window.removeEventListener('scoreUpdate', handleScoreUpdate);
       window.removeEventListener('specialUpdate', handleSpecialUpdate);
-      window.removeEventListener('checkAvailableBatsmen', handleCheckAvailableBatsmen);
       window.removeEventListener('wicketFallen', handleWicketFallen);
       window.removeEventListener('overComplete', handleOverComplete);
       window.removeEventListener('toggleStriker', handleToggleStriker);
@@ -318,7 +296,7 @@ function Core() {
 
   const calculateEconomy = (runs, balls) => {
     if (balls === 0) return 0;
-    const overs = Math.floor(balls / 6) + (balls % 6) / 10;
+    const overs = balls / 6; // Convert balls to overs directly
     return (runs / overs / 2).toFixed(2);
   };
 
@@ -461,6 +439,51 @@ ${Object.entries(stats.bowlerStats || {}).map(([bowler, stat]) =>
     }
   };
 
+  const loadInningsData = (teamKey, innings) => {
+    const teamData = matchData[teamKey === 'team1Data' ? 'team1' : 'team2'][innings];
+    if (teamData) {
+      setSelectedBatters(teamData.selectedBatters);
+      setSelectedBowler(teamData.selectedBowler);
+      setPlayerStats(teamData.playerStats);
+      setAllBowlerStats(teamData.bowlerStats);
+      setWickets(teamData.wickets);
+      setAvailableBatters(teamData.availableBatters);
+      setBattingTeamKey(teamKey);
+      setBowlingTeamKey(teamKey === 'team1Data' ? 'team2Data' : 'team1Data');
+      setBattingPlayers(teamKey === 'team1Data' ? team1Data.players : team2Data.players);
+      setBowlingPlayers(teamKey === 'team1Data' ? team2Data.players : team1Data.players);
+    }
+  };
+
+  const getCurrentTeamScore = () => {
+    return `${currentScore}/${wickets} (${currentOvers})`;
+  };
+
+  const getTeamScore = (teamKey, innings) => {
+    const teamData = matchData[teamKey === 'team1Data' ? 'team1' : 'team2'][innings];
+    if (!teamData) return `0/0 (0.0)`;
+    const score = teamData.score || 0;
+    const wickets = teamData.wickets || 0;
+    const overs = teamData.overs || '0.0';
+    return `${score}/${wickets} (${overs})`;
+  };
+
+  useEffect(() => {
+    // Listen for score updates to update overs
+    const handleScoreUpdate = () => {
+      const event = new CustomEvent('overUpdate', {
+        detail: {
+          overs: currentOver,
+          ballsInCurrentOver: ballsBowled % 6
+        }
+      });
+      window.dispatchEvent(event);
+    };
+
+    window.addEventListener('scoreUpdate', handleScoreUpdate);
+    return () => window.removeEventListener('scoreUpdate', handleScoreUpdate);
+  }, [currentOver, ballsBowled]);
+
   return (
     <div className="core-container">
       <div className="team-headers">
@@ -475,7 +498,6 @@ ${Object.entries(stats.bowlerStats || {}).map(([bowler, stat]) =>
               setAvailableBatters(team1Data.players || []);
               setCurrentTeamKey('team1Data');
             } else if (currentTeamKey === 'team1Data') {
-              // Switch to current UI
               setSelectedBatters(['', '']);
               setSelectedBowler('');
               setPlayerStats({});
@@ -487,22 +509,13 @@ ${Object.entries(stats.bowlerStats || {}).map(([bowler, stat]) =>
               setBowlingPlayers(team2Data.players || []);
               setAvailableBatters(team1Data.players || []);
               setCurrentTeamKey(null);
-            } else if (team1UI) {
-              // Show first team's preserved UI
-              setSelectedBatters(team1UI.selectedBatters);
-              setSelectedBowler(team1UI.selectedBowler);
-              setPlayerStats(team1UI.playerStats);
-              setAllBowlerStats(team1UI.allBowlerStats);
-              setWickets(team1UI.wickets);
-              setBattingTeamKey('team1Data');
-              setBowlingTeamKey('team2Data');
-              setBattingPlayers(team1Data.players || []);
-              setBowlingPlayers(team2Data.players || []);
+            } else {
+              loadInningsData('team1Data', 'innings1');
               setCurrentTeamKey('team1Data');
             }
           }}
         >
-          <h1>{team1Data.teamName || 'Team 1'}</h1>
+          <h1>{team1Data.teamName || 'Team 1'} {battingTeamKey === 'team1Data' ? getCurrentTeamScore() : getTeamScore('team1Data', 'innings1')}</h1>
         </button>
         <button 
           className={`team-button ${battingTeamKey === 'team2Data' ? 'active' : ''}`}
@@ -515,7 +528,6 @@ ${Object.entries(stats.bowlerStats || {}).map(([bowler, stat]) =>
               setAvailableBatters(team2Data.players || []);
               setCurrentTeamKey('team2Data');
             } else if (currentTeamKey === 'team2Data') {
-              // Switch to current UI
               setSelectedBatters(['', '']);
               setSelectedBowler('');
               setPlayerStats({});
@@ -527,22 +539,13 @@ ${Object.entries(stats.bowlerStats || {}).map(([bowler, stat]) =>
               setBowlingPlayers(team1Data.players || []);
               setAvailableBatters(team2Data.players || []);
               setCurrentTeamKey(null);
-            } else if (team2UI) {
-              // Show second team's preserved UI
-              setSelectedBatters(team2UI.selectedBatters);
-              setSelectedBowler(team2UI.selectedBowler);
-              setPlayerStats(team2UI.playerStats);
-              setAllBowlerStats(team2UI.allBowlerStats);
-              setWickets(team2UI.wickets);
-              setBattingTeamKey('team2Data');
-              setBowlingTeamKey('team1Data');
-              setBattingPlayers(team2Data.players || []);
-              setBowlingPlayers(team1Data.players || []);
+            } else {
+              loadInningsData('team2Data', 'innings1');
               setCurrentTeamKey('team2Data');
             }
           }}
         >
-          <h1>{team2Data.teamName || 'Team 2'}</h1>
+          <h1>{team2Data.teamName || 'Team 2'} {battingTeamKey === 'team2Data' ? getCurrentTeamScore() : getTeamScore('team2Data', 'innings1')}</h1>
         </button>
       </div>
 

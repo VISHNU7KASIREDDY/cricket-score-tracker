@@ -86,6 +86,16 @@ function Tools() {
     scrollToLatest();
   }, [sequence]);
 
+  useEffect(() => {
+    // Dispatch over update whenever overs or ballsInCurrentOver changes
+    const overUpdateEvent = new CustomEvent('overUpdate', {
+      detail: {
+        overs: `${overs}.${ballsInCurrentOver}`
+      }
+    });
+    window.dispatchEvent(overUpdateEvent);
+  }, [overs, ballsInCurrentOver]);
+
   const updateValidBall = () => {
     if (ballsInCurrentOver < 5) {
       setBallsInCurrentOver(prev => prev + 1);
@@ -141,6 +151,15 @@ function Tools() {
       } 
     });
     window.dispatchEvent(event);
+
+    // Dispatch over update event
+    const overUpdateEvent = new CustomEvent('overUpdate', {
+      detail: {
+        overs: overs,
+        ballsInCurrentOver: ballsInCurrentOver + 1
+      }
+    });
+    window.dispatchEvent(overUpdateEvent);
 
     // Update bowler's over stats
     const bowlerEvent = new CustomEvent('updateBowlerStats', {
@@ -204,6 +223,14 @@ function Tools() {
     if (wickets + 1 >= battingPlayers.length - 1) {
       setTimeout(() => {
         alert(`First innings completed! Target is ${score + 1}`);
+        // Reset score and overs for second innings
+        setScore(0);
+        setWickets(0);
+        setOvers(0);
+        setBallsInCurrentOver(0);
+        setRecentScores([]);
+        setSequence([]);
+        setRunsInCurrentOver(0);
       }, 1000);
     } else {
       // Show alert to select new batsman
