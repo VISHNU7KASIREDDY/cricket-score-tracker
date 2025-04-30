@@ -280,3 +280,12 @@ h3 {
   font-size: 1.2rem;
 }
 
+.stats-table tr.striker {
+  background-color: #e3f2fd;
+  font-weight: bold;
+}
+
+.stats-table tr.striker td {
+  border: 2px solid #2196F3;
+}
+

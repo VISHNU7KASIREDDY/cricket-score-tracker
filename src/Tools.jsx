@@ -37,12 +37,27 @@ function Tools() {
     setRecentScores(prev => [...prev, runs]);
     setSequence(prev => [...prev, runs]);
     updateValidBall();
+
+    const event = new CustomEvent('scoreUpdate', { 
+      detail: { 
+        runs: runs,
+        isFour: runs === 4,
+        isSix: runs === 6
+      } 
+    });
+    window.dispatchEvent(event);
   };
 
   const handleSpecial = (type) => {
     setScore(prev => prev + 1);
     setRecentScores(prev => [...prev, type]);
     setSequence(prev => [...prev, type]);
+    
+    const event = new CustomEvent('specialUpdate', { 
+      detail: { type } 
+    });
+    window.dispatchEvent(event);
+
     if (type === 'LB') {
       updateValidBall();
     }
@@ -54,7 +69,9 @@ function Tools() {
     setSequence(prev => [...prev, 'W']);
     updateValidBall();
     
-    const event = new CustomEvent('wicketFallen', { detail: { wicketNumber: wickets + 1 } });
+    const event = new CustomEvent('wicketFallen', { 
+      detail: { wicketNumber: wickets + 1 } 
+    });
     window.dispatchEvent(event);
   };
 
@@ -62,6 +79,29 @@ function Tools() {
     setScore(prev => prev + 1);
     setRecentScores(prev => [...prev, 'NB']);
     setSequence(prev => [...prev, 'NB']);
+    
+    const event = new CustomEvent('specialUpdate', { 
+      detail: { type: 'NB' } 
+    });
+    window.dispatchEvent(event);
+  };
+
+  const handleBallClick = () => {
+    const event = new CustomEvent('scoreUpdate', {
+      detail: {
+        runs: 0,
+        isFour: false,
+        isSix: false
+      }
+    });
+    window.dispatchEvent(event);
+    updateValidBall();
+  };
+
+  const handleOverComplete = () => {
+    const event = new CustomEvent('overComplete');
+    window.dispatchEvent(event);
+    alert('Please select a new bowler for the next over');
   };
 
   return (
@@ -77,7 +117,7 @@ function Tools() {
 
       <div className="icons">
         <div className="counter-buttons">
-          {[1, 2, 3, 4, 6].map((run) => (
+          {[0, 1, 2, 3, 4, 6].map((run) => (
             <button key={run} className="round" onClick={() => handleScore(run)}>
               {run}
             </button>

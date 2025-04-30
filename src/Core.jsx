@@ -15,6 +15,9 @@ function Core() {
   const [showInitialDropdowns, setShowInitialDropdowns] = useState(true);
   const [showNewBatterDropdown, setShowNewBatterDropdown] = useState(false);
   const [outBatterIndex, setOutBatterIndex] = useState(null);
+  const [strikerIndex, setStrikerIndex] = useState(0);
+  const [showBowlerSelection, setShowBowlerSelection] = useState(false);
+  const [ballsBowled, setBallsBowled] = useState(0);
 
   useEffect(() => {
     if (battingTeamKey) {
@@ -29,6 +32,92 @@ function Core() {
       setAvailableBatters(battingTeam?.players || []);
     }
   }, [battingTeamKey]);
+
+  useEffect(() => {
+    const handleScoreUpdate = (e) => {
+      const { runs, isFour, isSix } = e.detail;
+      const striker = selectedBatters[strikerIndex];
+      
+      if (striker) {
+        setPlayerStats(prev => ({
+          ...prev,
+          [striker]: {
+            ...prev[striker],
+            score: (prev[striker]?.score || 0) + runs,
+            ballsFaced: (prev[striker]?.ballsFaced || 0) + 1,
+            fours: (prev[striker]?.fours || 0) + (isFour ? 1 : 0),
+            sixes: (prev[striker]?.sixes || 0) + (isSix ? 1 : 0)
+          }
+        }));
+      }
+
+      if (selectedBowler) {
+        setBowlerStats(prev => ({
+          ...prev,
+          dots: prev.dots + (runs === 0 ? 1 : 0),
+          runsGiven: (prev.runsGiven || 0) + runs
+        }));
+      }
+
+      if (runs % 2 !== 0) {
+        setStrikerIndex(prev => (prev === 0 ? 1 : 0));
+      }
+    };
+
+    const handleSpecialUpdate = (e) => {
+      const { type } = e.detail;
+      
+      if (selectedBowler) {
+        setBowlerStats(prev => ({
+          ...prev,
+          dots: type === 'WD' || type === 'NB' ? prev.dots : prev.dots + 1,
+          runsGiven: (prev.runsGiven || 0) + 1
+        }));
+      }
+    };
+
+    const handleWicketFallen = () => {
+      const outBatter = selectedBatters[strikerIndex];
+      if (outBatter) {
+        setOutBatterIndex(strikerIndex);
+        setShowNewBatterDropdown(true);
+      }
+
+      if (selectedBowler) {
+        setBowlerStats(prev => ({
+          ...prev,
+          wickets: prev.wickets + 1
+        }));
+      }
+    };
+
+    const handleOverComplete = () => {
+      setShowBowlerSelection(true);
+      setBallsBowled(0);
+    };
+
+    window.addEventListener('scoreUpdate', handleScoreUpdate);
+    window.addEventListener('specialUpdate', handleSpecialUpdate);
+    window.addEventListener('wicketFallen', handleWicketFallen);
+    window.addEventListener('overComplete', handleOverComplete);
+
+    return () => {
+      window.removeEventListener('scoreUpdate', handleScoreUpdate);
+      window.removeEventListener('specialUpdate', handleSpecialUpdate);
+      window.removeEventListener('wicketFallen', handleWicketFallen);
+      window.removeEventListener('overComplete', handleOverComplete);
+    };
+  }, [selectedBatters, strikerIndex, selectedBowler]);
+
+  const calculateStrikeRate = (score, balls) => {
+    if (balls === 0) return 0;
+    return ((score / balls) * 100).toFixed(2);
+  };
+
+  const calculateEconomy = (runs, balls) => {
+    if (balls === 0) return 0;
+    return ((runs / balls) * 6).toFixed(2);
+  };
 
   const handleBatterChange = (index, value) => {
     const updatedBatters = [...selectedBatters];
@@ -86,15 +175,11 @@ function Core() {
     setSelectedBowler(value);
     setBowlerStats({
       overs: 0,
-      economy: 0,
+      runsGiven: 0,
       wickets: 0,
       dots: 0,
     });
-  };
-
-  const handleWicket = (batterIndex) => {
-    setShowNewBatterDropdown(true);
-    setOutBatterIndex(batterIndex);
+    setShowBowlerSelection(false);
   };
 
   return (
@@ -165,17 +250,19 @@ function Core() {
                 <th>Score</th>
                 <th>4s</th>
                 <th>6s</th>
+                <th>Strike Rate</th>
               </tr>
             </thead>
             <tbody>
               {selectedBatters.map((player, idx) =>
                 player && (
-                  <tr key={idx}>
+                  <tr key={idx} className={idx === strikerIndex ? 'striker' : ''}>
                     <td>{player}</td>
                     <td>{playerStats[player]?.ballsFaced || 0}</td>
                     <td>{playerStats[player]?.score || 0}</td>
                     <td>{playerStats[player]?.fours || 0}</td>
                     <td>{playerStats[player]?.sixes || 0}</td>
+                    <td>{calculateStrikeRate(playerStats[player]?.score || 0, playerStats[player]?.ballsFaced || 0)}</td>
                   </tr>
                 )
               )}
@@ -183,17 +270,33 @@ function Core() {
           </table>
 
           <h3>Bowler</h3>
-          <select
-            value={selectedBowler}
-            onChange={(e) => handleBowlerChange(e.target.value)}
-          >
-            <option value="">-- Select Bowler --</option>
-            {bowlingPlayers.map((player, idx) => (
-              <option key={idx} value={player}>
-                {player}
-              </option>
-            ))}
-          </select>
+          {showBowlerSelection ? (
+            <select
+              value={selectedBowler}
+              onChange={(e) => handleBowlerChange(e.target.value)}
+            >
+              <option value="">-- Select New Bowler --</option>
+              {bowlingPlayers
+                .filter(player => player !== selectedBowler)
+                .map((player, idx) => (
+                  <option key={idx} value={player}>
+                    {player}
+                  </option>
+                ))}
+            </select>
+          ) : (
+            <select
+              value={selectedBowler}
+              onChange={(e) => handleBowlerChange(e.target.value)}
+            >
+              <option value="">-- Select Bowler --</option>
+              {bowlingPlayers.map((player, idx) => (
+                <option key={idx} value={player}>
+                  {player}
+                </option>
+              ))}
+            </select>
+          )}
 
           {selectedBowler && (
             <table className="stats-table">
@@ -210,7 +313,7 @@ function Core() {
                 <tr>
                   <td>{selectedBowler}</td>
                   <td>{bowlerStats.overs}</td>
-                  <td>{bowlerStats.economy}</td>
+                  <td>{calculateEconomy(bowlerStats.runsGiven || 0, bowlerStats.ballsBowled || 0)}</td>
                   <td>{bowlerStats.wickets}</td>
                   <td>{bowlerStats.dots}</td>
                 </tr>
