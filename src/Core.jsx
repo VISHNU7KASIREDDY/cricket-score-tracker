@@ -10,7 +10,7 @@ function Core() {
   const [selectedBatters, setSelectedBatters] = useState(['', '']);
   const [selectedBowler, setSelectedBowler] = useState('');
   const [playerStats, setPlayerStats] = useState({});
-  const [bowlerStats, setBowlerStats] = useState({});
+  const [allBowlerStats, setAllBowlerStats] = useState({});
   const [availableBatters, setAvailableBatters] = useState([]);
   const [showInitialDropdowns, setShowInitialDropdowns] = useState(true);
   const [showNewBatterDropdown, setShowNewBatterDropdown] = useState(false);
@@ -52,10 +52,13 @@ function Core() {
       }
 
       if (selectedBowler) {
-        setBowlerStats(prev => ({
+        setAllBowlerStats(prev => ({
           ...prev,
-          dots: prev.dots + (runs === 0 ? 1 : 0),
-          runsGiven: (prev.runsGiven || 0) + runs
+          [selectedBowler]: {
+            ...prev[selectedBowler],
+            dots: prev[selectedBowler]?.dots + (runs === 0 ? 1 : 0),
+            runsGiven: (prev[selectedBowler]?.runsGiven || 0) + runs
+          }
         }));
       }
 
@@ -68,10 +71,13 @@ function Core() {
       const { type } = e.detail;
       
       if (selectedBowler) {
-        setBowlerStats(prev => ({
+        setAllBowlerStats(prev => ({
           ...prev,
-          dots: type === 'WD' || type === 'NB' ? prev.dots : prev.dots + 1,
-          runsGiven: (prev.runsGiven || 0) + 1
+          [selectedBowler]: {
+            ...prev[selectedBowler],
+            dots: type === 'WD' || type === 'NB' ? prev[selectedBowler]?.dots : prev[selectedBowler]?.dots + 1,
+            runsGiven: (prev[selectedBowler]?.runsGiven || 0) + 1
+          }
         }));
       }
     };
@@ -84,9 +90,12 @@ function Core() {
       }
 
       if (selectedBowler) {
-        setBowlerStats(prev => ({
+        setAllBowlerStats(prev => ({
           ...prev,
-          wickets: prev.wickets + 1
+          [selectedBowler]: {
+            ...prev[selectedBowler],
+            wickets: (prev[selectedBowler]?.wickets || 0) + 1
+          }
         }));
       }
     };
@@ -96,16 +105,40 @@ function Core() {
       setBallsBowled(0);
     };
 
+    const handleToggleStriker = () => {
+      setStrikerIndex(prev => (prev === 0 ? 1 : 0));
+    };
+
+    const handleUpdateBowlerStats = (e) => {
+      const { runs, balls, wicket } = e.detail;
+      if (selectedBowler) {
+        setAllBowlerStats(prev => ({
+          ...prev,
+          [selectedBowler]: {
+            ...prev[selectedBowler],
+            runsGiven: (prev[selectedBowler]?.runsGiven || 0) + runs,
+            ballsBowled: (prev[selectedBowler]?.ballsBowled || 0) + balls,
+            wickets: (prev[selectedBowler]?.wickets || 0) + (wicket ? 1 : 0),
+            dots: (prev[selectedBowler]?.dots || 0) + (runs === 0 && balls === 1 ? 1 : 0)
+          }
+        }));
+      }
+    };
+
     window.addEventListener('scoreUpdate', handleScoreUpdate);
     window.addEventListener('specialUpdate', handleSpecialUpdate);
     window.addEventListener('wicketFallen', handleWicketFallen);
     window.addEventListener('overComplete', handleOverComplete);
+    window.addEventListener('toggleStriker', handleToggleStriker);
+    window.addEventListener('updateBowlerStats', handleUpdateBowlerStats);
 
     return () => {
       window.removeEventListener('scoreUpdate', handleScoreUpdate);
       window.removeEventListener('specialUpdate', handleSpecialUpdate);
       window.removeEventListener('wicketFallen', handleWicketFallen);
       window.removeEventListener('overComplete', handleOverComplete);
+      window.removeEventListener('toggleStriker', handleToggleStriker);
+      window.removeEventListener('updateBowlerStats', handleUpdateBowlerStats);
     };
   }, [selectedBatters, strikerIndex, selectedBowler]);
 
@@ -117,6 +150,12 @@ function Core() {
   const calculateEconomy = (runs, balls) => {
     if (balls === 0) return 0;
     return ((runs / balls) * 6).toFixed(2);
+  };
+
+  const formatOvers = (balls) => {
+    const overs = Math.floor(balls / 6);
+    const remainingBalls = balls % 6;
+    return `${overs}.${remainingBalls}`;
   };
 
   const handleBatterChange = (index, value) => {
@@ -173,12 +212,6 @@ function Core() {
 
   const handleBowlerChange = (value) => {
     setSelectedBowler(value);
-    setBowlerStats({
-      overs: 0,
-      runsGiven: 0,
-      wickets: 0,
-      dots: 0,
-    });
     setShowBowlerSelection(false);
   };
 
@@ -298,28 +331,29 @@ function Core() {
             </select>
           )}
 
-          {selectedBowler && (
-            <table className="stats-table">
-              <thead>
-                <tr>
-                  <th>Bowler Name</th>
-                  <th>Overs</th>
-                  <th>Economy</th>
-                  <th>Wickets</th>
-                  <th>Dots</th>
+          <h3>Bowling Stats</h3>
+          <table className="stats-table">
+            <thead>
+              <tr>
+                <th>Bowler Name</th>
+                <th>Overs</th>
+                <th>Economy</th>
+                <th>Wickets</th>
+                <th>Dots</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(allBowlerStats).map(([bowler, stats]) => (
+                <tr key={bowler} className={bowler === selectedBowler ? 'active-bowler' : ''}>
+                  <td>{bowler}</td>
+                  <td>{formatOvers(stats.ballsBowled || 0)}</td>
+                  <td>{calculateEconomy(stats.runsGiven || 0, stats.ballsBowled || 0)}</td>
+                  <td>{stats.wickets || 0}</td>
+                  <td>{stats.dots || 0}</td>
                 </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>{selectedBowler}</td>
-                  <td>{bowlerStats.overs}</td>
-                  <td>{calculateEconomy(bowlerStats.runsGiven || 0, bowlerStats.ballsBowled || 0)}</td>
-                  <td>{bowlerStats.wickets}</td>
-                  <td>{bowlerStats.dots}</td>
-                </tr>
-              </tbody>
-            </table>
-          )}
+              ))}
+            </tbody>
+          </table>
         </>
       )}
     </div>

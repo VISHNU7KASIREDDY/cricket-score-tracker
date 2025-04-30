@@ -10,6 +10,7 @@ function Tools() {
   const [ballsInCurrentOver, setBallsInCurrentOver] = useState(0);
   const [recentScores, setRecentScores] = useState([]);
   const [sequence, setSequence] = useState([]);
+  const [runsInCurrentOver, setRunsInCurrentOver] = useState(0);
   const sequenceRef = useRef(null);
 
   const scrollToLatest = () => {
@@ -29,6 +30,14 @@ function Tools() {
       setOvers(prev => prev + 1);
       setBallsInCurrentOver(0);
       setSequence(prev => [...prev, '|']);
+      setRunsInCurrentOver(0);
+      
+      // Toggle striker after over completion
+      const event = new CustomEvent('toggleStriker');
+      window.dispatchEvent(event);
+      
+      // Alert for new bowler selection
+      alert('Please select a new bowler for the next over');
     }
   };
 
@@ -36,6 +45,7 @@ function Tools() {
     setScore(prev => prev + runs);
     setRecentScores(prev => [...prev, runs]);
     setSequence(prev => [...prev, runs]);
+    setRunsInCurrentOver(prev => prev + runs);
     updateValidBall();
 
     const event = new CustomEvent('scoreUpdate', { 
@@ -46,6 +56,15 @@ function Tools() {
       } 
     });
     window.dispatchEvent(event);
+
+    // Update bowler's over stats
+    const bowlerEvent = new CustomEvent('updateBowlerStats', {
+      detail: {
+        runs: runs,
+        balls: 1
+      }
+    });
+    window.dispatchEvent(bowlerEvent);
   };
 
   const handleSpecial = (type) => {
@@ -60,6 +79,14 @@ function Tools() {
 
     if (type === 'LB') {
       updateValidBall();
+      // Update bowler's over stats for leg byes
+      const bowlerEvent = new CustomEvent('updateBowlerStats', {
+        detail: {
+          runs: 1,
+          balls: 1
+        }
+      });
+      window.dispatchEvent(bowlerEvent);
     }
   };
 
@@ -73,6 +100,16 @@ function Tools() {
       detail: { wicketNumber: wickets + 1 } 
     });
     window.dispatchEvent(event);
+
+    // Update bowler's over stats for wicket
+    const bowlerEvent = new CustomEvent('updateBowlerStats', {
+      detail: {
+        runs: 0,
+        balls: 1,
+        wicket: true
+      }
+    });
+    window.dispatchEvent(bowlerEvent);
   };
 
   const handleNoBall = () => {
@@ -84,6 +121,15 @@ function Tools() {
       detail: { type: 'NB' } 
     });
     window.dispatchEvent(event);
+
+    // Update bowler's over stats for no ball
+    const bowlerEvent = new CustomEvent('updateBowlerStats', {
+      detail: {
+        runs: 1,
+        balls: 0
+      }
+    });
+    window.dispatchEvent(bowlerEvent);
   };
 
   const handleBallClick = () => {
@@ -96,6 +142,15 @@ function Tools() {
     });
     window.dispatchEvent(event);
     updateValidBall();
+
+    // Update bowler's over stats for dot ball
+    const bowlerEvent = new CustomEvent('updateBowlerStats', {
+      detail: {
+        runs: 0,
+        balls: 1
+      }
+    });
+    window.dispatchEvent(bowlerEvent);
   };
 
   const handleOverComplete = () => {
