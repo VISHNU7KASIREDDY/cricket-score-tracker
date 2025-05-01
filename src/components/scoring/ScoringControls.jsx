@@ -158,9 +158,20 @@ function ScoringControls({ match, recordBall, matchId }) {
       setShowBowlerModal(true)
     }
     
-    // If wicket, prompt for new batsman
+    // If wicket, check if innings should end
     if (isWicket) {
-      setShowBatsmanModal(true)
+      const remainingBatsmen = battingTeam?.players.filter(p => 
+        !currentInnings.battingScores.find(b => b.playerId === p.id && b.isOut)
+      ).length
+
+      if (remainingBatsmen <= 1) {
+        // End innings
+        const event = new CustomEvent('inningsComplete');
+        window.dispatchEvent(event);
+      } else {
+        // Show new batsman selection
+        setShowBatsmanModal(true)
+      }
     }
     
     resetBallState()

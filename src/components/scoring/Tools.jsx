@@ -219,25 +219,9 @@ function Tools() {
     });
     window.dispatchEvent(bowlerEvent);
 
-    // Check if this is the last wicket
-    if (wickets + 1 >= battingPlayers.length - 1) {
-      setTimeout(() => {
-        alert(`First innings completed! Target is ${score + 1}`);
-        // Reset score and overs for second innings
-        setScore(0);
-        setWickets(0);
-        setOvers(0);
-        setBallsInCurrentOver(0);
-        setRecentScores([]);
-        setSequence([]);
-        setRunsInCurrentOver(0);
-        
-        // Dispatch event to notify Core component about innings completion
-        const inningsCompleteEvent = new CustomEvent('inningsComplete');
-        window.dispatchEvent(inningsCompleteEvent);
-      }, 1000);
-    } else {
-      // Show alert to select new batsman
+    // Don't handle innings completion here - let Core.jsx handle it
+    // Just show the new batsman selection if needed
+    if (wickets + 1 < battingPlayers.length - 1) {
       setTimeout(() => {
         alert('Please select a new batsman');
         const event = new CustomEvent('batterRequired');

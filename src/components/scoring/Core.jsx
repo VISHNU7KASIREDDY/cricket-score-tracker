@@ -150,12 +150,99 @@ function Core() {
       const outBatter = selectedBatters[strikerIndex];
       if (outBatter) {
         setOutBatterIndex(strikerIndex);
-        setShowNewBatterDropdown(true);
         setAvailableBatters(prev => prev.filter(batter => batter !== outBatter));
-        const event = new CustomEvent('batterRequired');
-        window.dispatchEvent(event);
+        
+        // Check if this is the last wicket (only one player left)
+        if (wickets + 1 >= battingPlayers.length - 1) {
+          // End the innings immediately
+          const currentScore = Object.values(playerStats).reduce((sum, stats) => sum + (stats.score || 0), 0);
+          
+          // Store the completed innings data
+          setMatchData(prev => {
+            const newData = { ...prev };
+            const teamStats = {
+              score: currentScore,
+              wickets: wickets + 1,
+              ballsBowled: ballsBowled,
+              overs: currentOvers,
+              playerStats: playerStats,
+              bowlerStats: allBowlerStats,
+              selectedBatters,
+              selectedBowler,
+              availableBatters,
+              battersTable: Object.entries(playerStats).map(([player, stats]) => ({
+                player,
+                ballsFaced: stats.ballsFaced || 0,
+                score: stats.score || 0,
+                fours: stats.fours || 0,
+                sixes: stats.sixes || 0,
+                strikeRate: calculateStrikeRate(stats.score || 0, stats.ballsFaced || 0)
+              }))
+            };
+
+            if (battingTeamKey === 'team1Data') {
+              newData.team1.innings1 = teamStats;
+            } else {
+              newData.team2.innings1 = teamStats;
+            }
+            localStorage.setItem('matchData', JSON.stringify(newData));
+            return newData;
+          });
+
+          // Reset all states for next innings
+          setCurrentInnings(2);
+          
+          // Switch teams for second innings
+          // If team1 was batting, now team2 will bat and team1 will bowl
+          // If team2 was batting, now team1 will bat and team2 will bowl
+          const newBattingTeamKey = battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
+          const newBowlingTeamKey = newBattingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
+          
+          setBattingTeamKey(newBattingTeamKey);
+          setBowlingTeamKey(newBowlingTeamKey);
+          setBattingPlayers(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+          setBowlingPlayers(newBowlingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+          
+          // Reset all states
+          setSelectedBatters(['', '']);
+          setSelectedBowler('');
+          setPlayerStats({});
+          setAllBowlerStats({});
+          setAvailableBatters(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
+          setShowInitialDropdowns(true);
+          setShowNewBatterDropdown(false);
+          setOutBatterIndex(null);
+          setStrikerIndex(0);
+          setShowBowlerSelection(false);
+          setBallsBowled(0);
+          setHasStartedBatting(false);
+          setWickets(0);
+          setCurrentScore(0);
+          setCurrentOvers('0.0');
+
+          // Notify about innings completion and target
+          setTimeout(() => {
+            alert(`First innings completed! Target is ${currentScore + 1}`);
+            // Show alert for second innings batsman selection
+            setTimeout(() => {
+              alert(`Second innings starting. Please select batsmen for ${newBattingTeamKey === 'team1Data' ? team1Data.teamName : team2Data.teamName}`);
+              const event = new CustomEvent('battersNotSelected');
+              window.dispatchEvent(event);
+              const bowlerEvent = new CustomEvent('bowlerRequired');
+              window.dispatchEvent(bowlerEvent);
+              const resetEvent = new CustomEvent('inningsComplete');
+              window.dispatchEvent(resetEvent);
+            }, 1000);
+          }, 500);
+        } else {
+          // If not the last wicket, show new batsman selection
+          setShowNewBatterDropdown(true);
+          const event = new CustomEvent('batterRequired');
+          window.dispatchEvent(event);
+        }
       }
 
+      // Update bowler stats
       if (selectedBowler) {
         setAllBowlerStats(prev => ({
           ...prev,
@@ -164,96 +251,6 @@ function Core() {
             wickets: (prev[selectedBowler]?.wickets || 0) + 1
           }
         }));
-      }
-
-      if (wickets + 1 >= battingPlayers.length - 1) {
-        const currentScore = Object.values(playerStats).reduce((sum, stats) => sum + (stats.score || 0), 0);
-        const teamStats = {
-          score: currentScore,
-          wickets: wickets + 1,
-          ballsBowled: ballsBowled,
-          overs: currentOvers,
-          playerStats: playerStats,
-          bowlerStats: allBowlerStats,
-          selectedBatters,
-          selectedBowler,
-          availableBatters,
-          battersTable: Object.entries(playerStats).map(([player, stats]) => ({
-            player,
-            ballsFaced: stats.ballsFaced || 0,
-            score: stats.score || 0,
-            fours: stats.fours || 0,
-            sixes: stats.sixes || 0,
-            strikeRate: calculateStrikeRate(stats.score || 0, stats.ballsFaced || 0)
-          }))
-        };
-
-        setMatchData(prev => {
-          const newData = { ...prev };
-          if (battingTeamKey === 'team1Data') {
-            newData.team1.innings1 = teamStats;
-          } else {
-            newData.team2.innings1 = teamStats;
-          }
-          localStorage.setItem('matchData', JSON.stringify(newData));
-          return newData;
-        });
-
-        // Store the completed innings score
-        if (battingTeamKey === 'team1Data') {
-          setTeam1Stats({
-            score: currentScore,
-            wickets: wickets + 1,
-            overs: currentOvers,
-            playerStats,
-            bowlerStats: allBowlerStats
-          });
-        } else {
-          setTeam2Stats({
-            score: currentScore,
-            wickets: wickets + 1,
-            overs: currentOvers,
-            playerStats,
-            bowlerStats: allBowlerStats
-          });
-        }
-
-        // Reset states for next innings
-        setCurrentInnings(2);
-        const newBattingTeamKey = battingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
-        const newBowlingTeamKey = newBattingTeamKey === 'team1Data' ? 'team2Data' : 'team1Data';
-        
-        setBattingTeamKey(newBattingTeamKey);
-        setBowlingTeamKey(newBowlingTeamKey);
-        setBattingPlayers(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
-        setBowlingPlayers(newBowlingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
-        
-        setSelectedBatters(['', '']);
-        setSelectedBowler('');
-        setPlayerStats({});
-        setAllBowlerStats({});
-        setAvailableBatters(newBattingTeamKey === 'team1Data' ? team1Data.players : team2Data.players);
-        setShowInitialDropdowns(true);
-        setShowNewBatterDropdown(false);
-        setOutBatterIndex(null);
-        setStrikerIndex(0);
-        setShowBowlerSelection(false);
-        setBallsBowled(0);
-        setHasStartedBatting(false);
-        setWickets(0);
-        setCurrentScore(0);
-        setCurrentOvers('0.0');
-
-        setTimeout(() => {
-          alert(`First innings completed! Target is ${currentScore + 1}`);
-          const event = new CustomEvent('battersNotSelected');
-          window.dispatchEvent(event);
-          const bowlerEvent = new CustomEvent('bowlerRequired');
-          window.dispatchEvent(bowlerEvent);
-          // Dispatch event to reset Tools.jsx
-          const resetEvent = new CustomEvent('inningsComplete');
-          window.dispatchEvent(resetEvent);
-        }, 500);
       }
     };
 
